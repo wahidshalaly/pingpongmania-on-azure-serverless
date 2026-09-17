@@ -5,6 +5,7 @@ using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenTelemetry;
+using PingPongMania.PlayFunctions;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ builder.Services.AddHttpClient("Ping", client =>
     var pingBaseUrl = builder.Configuration["PingBaseUrl"] ?? "http://localhost:7072";
     client.BaseAddress = new Uri(pingBaseUrl);
 });
+builder.Services.AddScoped<IPingClient, PingClient>();
 
 var openTelemetryBuilder = builder.Services.AddOpenTelemetry()
     .UseFunctionsWorkerDefaults();

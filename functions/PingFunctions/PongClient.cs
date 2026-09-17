@@ -2,7 +2,12 @@ using Microsoft.Extensions.Logging;
 
 namespace PingPongMania.PingFunctions;
 
-public class PongClient
+public interface IPongClient
+{
+    Task InvokeAsync();
+}
+
+public class PongClient : IPongClient
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<PongClient> _logger;

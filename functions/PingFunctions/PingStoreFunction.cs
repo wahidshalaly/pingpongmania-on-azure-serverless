@@ -8,10 +8,10 @@ namespace PingPongMania.PingFunctions;
 public class PingStoreFunction
 {
     private readonly TableClient _tableClient;
-    private readonly PongClient _pongClient;
+    private readonly IPongClient _pongClient;
     private readonly ILogger<PingStoreFunction> _logger;
 
-    public PingStoreFunction(TableClient tableClient, PongClient pongClient, ILogger<PingStoreFunction> logger)
+    public PingStoreFunction(TableClient tableClient, IPongClient pongClient, ILogger<PingStoreFunction> logger)
     {
         _tableClient = tableClient;
         _pongClient = pongClient;

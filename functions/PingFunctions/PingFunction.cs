@@ -7,10 +7,10 @@ namespace PingPongMania.PingFunctions;
 
 public class PingFunction
 {
-    private readonly PongClient _pongClient;
+    private readonly IPongClient _pongClient;
     private readonly ILogger<PingFunction> _logger;
 
-    public PingFunction(PongClient pongClient, ILogger<PingFunction> logger)
+    public PingFunction(IPongClient pongClient, ILogger<PingFunction> logger)
     {
         _pongClient = pongClient;
         _logger = logger;

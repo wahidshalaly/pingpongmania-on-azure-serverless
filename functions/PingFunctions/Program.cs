@@ -20,7 +20,7 @@ builder.Services.AddHttpClient("Pong", client =>
     var pongBaseUrl = builder.Configuration["PongBaseUrl"] ?? "http://localhost:7071";
     client.BaseAddress = new Uri(pongBaseUrl);
 });
-builder.Services.AddScoped<PongClient>();
+builder.Services.AddScoped<IPongClient, PongClient>();
 
 builder.Services.AddSingleton(_ =>
 {

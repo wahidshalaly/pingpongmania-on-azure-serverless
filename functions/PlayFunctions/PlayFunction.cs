@@ -7,12 +7,12 @@ namespace PingPongMania.PlayFunctions;
 
 public class PlayFunction
 {
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IPingClient _pingClient;
     private readonly ILogger<PlayFunction> _logger;
 
-    public PlayFunction(IHttpClientFactory httpClientFactory, ILogger<PlayFunction> logger)
+    public PlayFunction(IPingClient pingClient, ILogger<PlayFunction> logger)
     {
-        _httpClientFactory = httpClientFactory;
+        _pingClient = pingClient;
         _logger = logger;
     }
 
@@ -23,11 +23,7 @@ public class PlayFunction
 
         try
         {
-            var ping = _httpClientFactory.CreateClient("Ping");
-            var response = await ping.GetAsync("api/ping");
-            response.EnsureSuccessStatusCode();
-
-            _logger.LogInformation("Ping function has been called successfully.");
+            await _pingClient.InvokeAsync();
             return new OkResult();
         }
         catch (Exception exception)
