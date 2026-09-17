@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PlayFunctions": {
+      "commandName": "Project",
+      "launchBrowser": false
+    }
+  }
+}
