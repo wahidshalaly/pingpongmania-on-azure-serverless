@@ -18,4 +18,8 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\aspire\PingPongMania.ServiceDefaults\PingPongMania.ServiceDefaults.csproj" />
+  </ItemGroup>
+
 </Project>

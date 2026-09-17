@@ -12,6 +12,7 @@ using static PingPongMania.Constants;
 var builder = FunctionsApplication.CreateBuilder(args);
 
 builder.ConfigureFunctionsWebApplication();
+builder.AddServiceDefaults();
 
 builder.Services.AddHttpClient("Pong", client =>
 {
@@ -22,7 +23,7 @@ builder.Services.AddScoped<PongClient>();
 
 builder.Services.AddSingleton(_ =>
 {
-    var connectionString = builder.Configuration["AzureWebJobsStorage"] ?? "UseDevelopmentStorage=true";
+    var connectionString = builder.Configuration["PingsTableConnection"] ?? "UseDevelopmentStorage=true";
     var tableClient = new TableClient(connectionString, PingTableName);
     tableClient.CreateIfNotExists();
     return tableClient;

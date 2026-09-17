@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.csproj" />
+    <ProjectReference Include="..\..\aspire\PingPongMania.ServiceDefaults\PingPongMania.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

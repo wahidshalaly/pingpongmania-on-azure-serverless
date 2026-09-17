@@ -9,6 +9,7 @@ using OpenTelemetry;
 var builder = FunctionsApplication.CreateBuilder(args);
 
 builder.ConfigureFunctionsWebApplication();
+builder.AddServiceDefaults();
 
 var openTelemetryBuilder = builder.Services.AddOpenTelemetry()
     .UseFunctionsWorkerDefaults();
