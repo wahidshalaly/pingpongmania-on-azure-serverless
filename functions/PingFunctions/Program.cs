@@ -1,4 +1,5 @@
 using Azure.Data.Tables;
+using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
@@ -23,8 +24,13 @@ builder.Services.AddScoped<PongClient>();
 
 builder.Services.AddSingleton(_ =>
 {
-    var connectionString = builder.Configuration["PingsTableConnection"] ?? "UseDevelopmentStorage=true";
-    var tableClient = new TableClient(connectionString, PingTableName);
+    // In Azure, the storage account has shared-key access disabled, so the deployed app
+    // connects via its managed identity using a service URI. Locally (Aspire or solo dev
+    // against Azurite), a plain connection string is used instead.
+    var tableServiceUri = builder.Configuration["PingsTableConnection__tableServiceUri"];
+    var tableClient = !string.IsNullOrEmpty(tableServiceUri)
+        ? new TableClient(new Uri(tableServiceUri), PingTableName, new DefaultAzureCredential())
+        : new TableClient(builder.Configuration["PingsTableConnection"] ?? "UseDevelopmentStorage=true", PingTableName);
     tableClient.CreateIfNotExists();
     return tableClient;
 });
