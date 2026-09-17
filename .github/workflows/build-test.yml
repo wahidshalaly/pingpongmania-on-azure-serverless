@@ -1,0 +1,27 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Setup .NET 10.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+    - name: Build legacy Dapr services (src/, pending Phase F cutover)
+      run: dotnet build src/PingPongMania.sln
+    - name: Build Aspire AppHost (pulls in all 3 Functions projects + ServiceDefaults)
+      run: dotnet build aspire/PingPongMania.AppHost/PingPongMania.AppHost.csproj
+    - name: Test
+      run: dotnet test tests/PingPongMania.Functions.Tests/PingPongMania.Functions.Tests.csproj
