@@ -7,12 +7,12 @@ namespace PingPongMania.PingFunctions;
 
 public class PingFunction
 {
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly PongClient _pongClient;
     private readonly ILogger<PingFunction> _logger;
 
-    public PingFunction(IHttpClientFactory httpClientFactory, ILogger<PingFunction> logger)
+    public PingFunction(PongClient pongClient, ILogger<PingFunction> logger)
     {
-        _httpClientFactory = httpClientFactory;
+        _pongClient = pongClient;
         _logger = logger;
     }
 
@@ -23,11 +23,7 @@ public class PingFunction
 
         try
         {
-            var pong = _httpClientFactory.CreateClient("Pong");
-            var response = await pong.GetAsync("api/pong");
-            response.EnsureSuccessStatusCode();
-
-            _logger.LogInformation("Pong function has been invoked successfully.");
+            await _pongClient.InvokeAsync();
             return new OkResult();
         }
         catch (Exception exception)
