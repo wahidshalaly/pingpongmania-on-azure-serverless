@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PingFunctions": {
+      "commandName": "Project",
+      "launchBrowser": false
+    }
+  }
+}
