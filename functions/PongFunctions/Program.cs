@@ -11,8 +11,7 @@ var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
 builder.AddServiceDefaults();
 
-var openTelemetryBuilder = builder.Services.AddOpenTelemetry()
-    .UseFunctionsWorkerDefaults();
+var openTelemetryBuilder = builder.Services.AddOpenTelemetry().UseFunctionsWorkerDefaults();
 
 if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
     openTelemetryBuilder.UseAzureMonitorExporter();

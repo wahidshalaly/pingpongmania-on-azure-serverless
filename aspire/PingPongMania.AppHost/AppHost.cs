@@ -8,14 +8,16 @@ var pingQueue = serviceBus.AddServiceBusQueue("ping-queue");
 
 var pong = builder.AddAzureFunctionsProject<Projects.PongFunctions>("pongfunctions");
 
-var ping = builder.AddAzureFunctionsProject<Projects.PingFunctions>("pingfunctions")
+var ping = builder
+    .AddAzureFunctionsProject<Projects.PingFunctions>("pingfunctions")
     .WithReference(tables, connectionName: "PingsTableConnection")
     .WithReference(pingQueue, connectionName: "ServiceBusConnection")
     .WaitFor(tables)
     .WaitFor(pingQueue)
     .WithEnvironment("PongBaseUrl", pong.GetEndpoint("http"));
 
-var play = builder.AddAzureFunctionsProject<Projects.PlayFunctions>("playfunctions")
+var play = builder
+    .AddAzureFunctionsProject<Projects.PlayFunctions>("playfunctions")
     .WithEnvironment("PingBaseUrl", ping.GetEndpoint("http"));
 
 builder.Build().Run();

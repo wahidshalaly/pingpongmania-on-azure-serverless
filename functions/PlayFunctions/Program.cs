@@ -12,15 +12,17 @@ var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
 builder.AddServiceDefaults();
 
-builder.Services.AddHttpClient("Ping", client =>
-{
-    var pingBaseUrl = builder.Configuration["PingBaseUrl"] ?? "http://localhost:7072";
-    client.BaseAddress = new Uri(pingBaseUrl);
-});
+builder.Services.AddHttpClient(
+    "Ping",
+    client =>
+    {
+        var pingBaseUrl = builder.Configuration["PingBaseUrl"] ?? "http://localhost:7072";
+        client.BaseAddress = new Uri(pingBaseUrl);
+    }
+);
 builder.Services.AddScoped<IPingClient, PingClient>();
 
-var openTelemetryBuilder = builder.Services.AddOpenTelemetry()
-    .UseFunctionsWorkerDefaults();
+var openTelemetryBuilder = builder.Services.AddOpenTelemetry().UseFunctionsWorkerDefaults();
 
 if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
     openTelemetryBuilder.UseAzureMonitorExporter();

@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -25,5 +24,4 @@
     <ProjectReference Include="..\..\functions\PlayFunctions\PlayFunctions.csproj" />
     <ProjectReference Include="..\..\functions\Shared\Shared.csproj" />
   </ItemGroup>
-
 </Project>

@@ -19,6 +19,10 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
+    - name: Restore dotnet tools (CSharpier)
+      run: dotnet tool restore
+    - name: Check formatting (functions/, aspire/, tests/)
+      run: dotnet csharpier check functions aspire tests
     - name: Build legacy Dapr services (src/, pending Phase F cutover)
       run: dotnet build src/PingPongMania.sln
     - name: Build Aspire AppHost (pulls in all 3 Functions projects + ServiceDefaults)

@@ -15,11 +15,14 @@ var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
 builder.AddServiceDefaults();
 
-builder.Services.AddHttpClient("Pong", client =>
-{
-    var pongBaseUrl = builder.Configuration["PongBaseUrl"] ?? "http://localhost:7071";
-    client.BaseAddress = new Uri(pongBaseUrl);
-});
+builder.Services.AddHttpClient(
+    "Pong",
+    client =>
+    {
+        var pongBaseUrl = builder.Configuration["PongBaseUrl"] ?? "http://localhost:7071";
+        client.BaseAddress = new Uri(pongBaseUrl);
+    }
+);
 builder.Services.AddScoped<IPongClient, PongClient>();
 
 builder.Services.AddSingleton(_ =>
@@ -30,13 +33,15 @@ builder.Services.AddSingleton(_ =>
     var tableServiceUri = builder.Configuration["PingsTableConnection__tableServiceUri"];
     var tableClient = !string.IsNullOrEmpty(tableServiceUri)
         ? new TableClient(new Uri(tableServiceUri), PingTableName, new DefaultAzureCredential())
-        : new TableClient(builder.Configuration["PingsTableConnection"] ?? "UseDevelopmentStorage=true", PingTableName);
+        : new TableClient(
+            builder.Configuration["PingsTableConnection"] ?? "UseDevelopmentStorage=true",
+            PingTableName
+        );
     tableClient.CreateIfNotExists();
     return tableClient;
 });
 
-var openTelemetryBuilder = builder.Services.AddOpenTelemetry()
-    .UseFunctionsWorkerDefaults();
+var openTelemetryBuilder = builder.Services.AddOpenTelemetry().UseFunctionsWorkerDefaults();
 
 if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
     openTelemetryBuilder.UseAzureMonitorExporter();

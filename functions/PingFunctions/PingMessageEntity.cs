@@ -12,9 +12,6 @@ public class PingMessageEntity : ITableEntity
 
     public DateTimeOffset ReceivedAt { get; set; }
 
-    public static PingMessageEntity FromMessage(PingMessage message) => new()
-    {
-        RowKey = message.Id.ToString(),
-        ReceivedAt = message.Timestamp
-    };
+    public static PingMessageEntity FromMessage(PingMessage message) =>
+        new() { RowKey = message.Id.ToString(), ReceivedAt = message.Timestamp };
 }

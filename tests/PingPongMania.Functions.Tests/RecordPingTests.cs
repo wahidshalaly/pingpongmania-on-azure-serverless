@@ -6,30 +6,45 @@ using PingPongMania.PingFunctions;
 
 namespace PingPongMania.Functions.Tests;
 
-public class PingStoreFunctionTests
+public class RecordPingTests
 {
     [Fact]
     public async Task Run_SavesMessageAndInvokesPong()
     {
         var tableClient = new Mock<TableClient>();
         tableClient
-            .Setup(c => c.UpsertEntityAsync(It.IsAny<PingMessageEntity>(), It.IsAny<TableUpdateMode>(), It.IsAny<CancellationToken>()))
+            .Setup(c =>
+                c.UpsertEntityAsync(
+                    It.IsAny<PingMessageEntity>(),
+                    It.IsAny<TableUpdateMode>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
             .ReturnsAsync((Response)null!);
 
         var pongClient = new Mock<IPongClient>();
         pongClient.Setup(c => c.InvokeAsync()).Returns(Task.CompletedTask);
 
-        var function = new PingStoreFunction(tableClient.Object, pongClient.Object, NullLogger<PingStoreFunction>.Instance);
+        var function = new RecordPing(
+            tableClient.Object,
+            pongClient.Object,
+            NullLogger<RecordPing>.Instance
+        );
         var message = new PingMessage(Guid.NewGuid(), DateTimeOffset.UtcNow);
 
         await function.Run(message);
 
         tableClient.Verify(
-            c => c.UpsertEntityAsync(
-                It.Is<PingMessageEntity>(e => e.RowKey == message.Id.ToString() && e.ReceivedAt == message.Timestamp),
-                It.IsAny<TableUpdateMode>(),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+            c =>
+                c.UpsertEntityAsync(
+                    It.Is<PingMessageEntity>(e =>
+                        e.RowKey == message.Id.ToString() && e.ReceivedAt == message.Timestamp
+                    ),
+                    It.IsAny<TableUpdateMode>(),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Once
+        );
         pongClient.Verify(c => c.InvokeAsync(), Times.Once);
     }
 
@@ -38,11 +53,21 @@ public class PingStoreFunctionTests
     {
         var tableClient = new Mock<TableClient>();
         tableClient
-            .Setup(c => c.UpsertEntityAsync(It.IsAny<PingMessageEntity>(), It.IsAny<TableUpdateMode>(), It.IsAny<CancellationToken>()))
+            .Setup(c =>
+                c.UpsertEntityAsync(
+                    It.IsAny<PingMessageEntity>(),
+                    It.IsAny<TableUpdateMode>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
             .ThrowsAsync(new RequestFailedException("storage unavailable"));
 
         var pongClient = new Mock<IPongClient>();
-        var function = new PingStoreFunction(tableClient.Object, pongClient.Object, NullLogger<PingStoreFunction>.Instance);
+        var function = new RecordPing(
+            tableClient.Object,
+            pongClient.Object,
+            NullLogger<RecordPing>.Instance
+        );
         var message = new PingMessage(Guid.NewGuid(), DateTimeOffset.UtcNow);
 
         await Assert.ThrowsAsync<RequestFailedException>(() => function.Run(message));

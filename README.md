@@ -31,10 +31,10 @@ In Azure, `Play`'s public entry point is APIM → a Logic App workflow, which ei
 
 ```
 functions/
-  PlayFunctions/     api/play  — HTTP trigger, calls Ping
-  PingFunctions/     api/ping  — HTTP trigger, calls Pong
-                     PingStore — Service Bus trigger, writes to Table Storage, then calls Pong
-  PongFunctions/     api/pong  — HTTP trigger, trivial 200 OK
+  PlayFunctions/     Play      — api/play, HTTP trigger, calls Ping
+  PingFunctions/     Ping      — api/ping, HTTP trigger, calls Pong
+                     RecordPing — Service Bus trigger, writes to Table Storage, then calls Pong
+  PongFunctions/     Pong      — api/pong, HTTP trigger, trivial 200 OK
   Shared/            PingMessage record + queue/table name constants
 
 aspire/
@@ -85,7 +85,7 @@ A `200` response means the whole chain succeeded. Each HTTP trigger is declared 
 
 ### Testing the Service Bus path locally
 
-`PingStoreFunction` (the queue-triggered half of `Ping`) only fires on messages published to `ping-queue`. There's no local HTTP trigger for this path — that branching lives in the Logic App workflow (Azure-only, not part of local Aspire orchestration). To exercise it locally, publish a `PingMessage`-shaped JSON payload to the emulated queue directly (e.g. via the Service Bus SDK or a tool like Service Bus Explorer), using the emulator's connection string shown in the dashboard's `servicebus` resource.
+`RecordPing` (the queue-triggered half of the `PingFunctions` app) only fires on messages published to `ping-queue`. There's no local HTTP trigger for this path — that branching lives in the Logic App workflow (Azure-only, not part of local Aspire orchestration). To exercise it locally, publish a `PingMessage`-shaped JSON payload to the emulated queue directly (e.g. via the Service Bus SDK or a tool like Service Bus Explorer), using the emulator's connection string shown in the dashboard's `servicebus` resource.
 
 ## Running tests
 
@@ -104,7 +104,13 @@ az deployment sub what-if --location australiaeast --template-file infra/main.bi
 
 ## CI/CD
 
-[.github/workflows/build-test.yml](.github/workflows/build-test.yml) builds the legacy `src/` solution, the Aspire AppHost (which pulls in all 3 Functions projects), and runs the test suite on every push/PR to `main`. Deployment workflows (OIDC-based `az deployment` to `test`/`prod`) are not yet added.
+[.github/workflows/build-test.yml](.github/workflows/build-test.yml) checks code formatting (`functions/`, `aspire/`, `tests/`), builds the legacy `src/` solution, builds the Aspire AppHost (which pulls in all 3 Functions projects), and runs the test suite on every push/PR to `main`. Deployment workflows (OIDC-based `az deployment` to `test`/`prod`) are not yet added.
+
+Code style for the new stack is enforced by [CSharpier](https://csharpier.com):
+```pwsh
+dotnet tool restore
+dotnet csharpier format functions aspire tests
+```
 
 ## Legacy Dapr/Kubernetes stack (being retired)
 

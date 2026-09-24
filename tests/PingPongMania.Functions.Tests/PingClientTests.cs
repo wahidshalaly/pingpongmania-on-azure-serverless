@@ -7,7 +7,9 @@ namespace PingPongMania.Functions.Tests;
 
 public class PingClientTests
 {
-    private static (PingClient client, FakeHttpMessageHandler handler) CreateClient(HttpStatusCode statusCode)
+    private static (PingClient client, FakeHttpMessageHandler handler) CreateClient(
+        HttpStatusCode statusCode
+    )
     {
         var handler = new FakeHttpMessageHandler(statusCode);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://localhost") };

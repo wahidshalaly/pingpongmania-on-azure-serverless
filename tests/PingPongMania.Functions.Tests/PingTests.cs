@@ -6,14 +6,14 @@ using PingPongMania.PingFunctions;
 
 namespace PingPongMania.Functions.Tests;
 
-public class PingFunctionTests
+public class PingTests
 {
     [Fact]
     public async Task Reply_ReturnsOk_WhenPongSucceeds()
     {
         var pongClient = new Mock<IPongClient>();
         pongClient.Setup(c => c.InvokeAsync()).Returns(Task.CompletedTask);
-        var function = new PingFunction(pongClient.Object, NullLogger<PingFunction>.Instance);
+        var function = new Ping(pongClient.Object, NullLogger<Ping>.Instance);
 
         var result = await function.Reply(new DefaultHttpContext().Request);
 
@@ -25,7 +25,7 @@ public class PingFunctionTests
     {
         var pongClient = new Mock<IPongClient>();
         pongClient.Setup(c => c.InvokeAsync()).ThrowsAsync(new HttpRequestException("boom"));
-        var function = new PingFunction(pongClient.Object, NullLogger<PingFunction>.Instance);
+        var function = new Ping(pongClient.Object, NullLogger<Ping>.Instance);
 
         var result = await function.Reply(new DefaultHttpContext().Request);
 

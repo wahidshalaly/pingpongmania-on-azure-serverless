@@ -32,12 +32,19 @@ dotnet test tests/PingPongMania.Functions.Tests/PingPongMania.Functions.Tests.cs
 # Bicep validation only (no deploy)
 az bicep build --file infra/main.bicep
 az bicep lint --file infra/main.bicep
+
+# Format check / apply (new stack only — src/ is excluded, being retired)
+dotnet tool restore
+dotnet csharpier check functions aspire tests
+dotnet csharpier format functions aspire tests
 ```
 
 Package versions are centrally managed via `Directory.Packages.props` at the repo root (NuGet Central Package Management) — don't add inline `Version=` attributes on `PackageReference` in any `.csproj`; add/bump the version in `Directory.Packages.props` instead.
 
 ## Conventions worth knowing
 
-- All 3 Functions apps (`PongFunctions`, `PingFunctions`, `PlayFunctions`) are .NET 10 isolated-worker, each with a thin trigger + an injectable `IXxxClient` interface for the HTTP call to the next service, to keep unit tests free of Functions-runtime fakery (see `tests/`).
+- All 3 Functions apps (`PongFunctions`, `PingFunctions`, `PlayFunctions`) are .NET 10 isolated-worker, each with a thin trigger class (`Ping`, `Play`, `Pong`, `RecordPing`) + an injectable `IXxxClient` interface for the HTTP call to the next service, to keep unit tests free of Functions-runtime fakery (see `tests/`).
 - Aspire's `WithReference(...)` injects flat top-level config keys (`builder.Configuration["Key"]`), not `ConnectionStrings:Key` — code and `local.settings.json` follow that pattern.
+- Use C# primary constructor syntax for dependency-injected classes (`public class Foo(IDep dep)`), not an explicit constructor body assigning to private readonly fields.
+- Code style is enforced by [CSharpier](https://csharpier.com) (local dotnet tool, `.config/dotnet-tools.json`), scoped to `functions/`, `aspire/`, `tests/`. CI fails on unformatted code (`dotnet csharpier check`); run `dotnet csharpier format functions aspire tests` before committing. In VS Code, install the recommended `csharpier.csharpier-vscode` extension (prompted automatically via `.vscode/extensions.json`) — `.vscode/settings.json` sets it as the default C# formatter with format-on-save, and it auto-uses the version pinned in `.config/dotnet-tools.json`. CSharpier deliberately ignores `.editorconfig` (it's a non-configurable, opinionated formatter like Prettier), so no `.editorconfig` is needed for it.
 - Bicep: a `module`'s `scope:` can only be resourceGroup/subscription/managementGroup/tenant, never an arbitrary existing-resource symbol. RBAC role assignments are declared as plain `resource` extension blocks in `infra/modules/rbac.bicep`, not as a generic nested module.
