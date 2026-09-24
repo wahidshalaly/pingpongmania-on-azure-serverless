@@ -1,4 +1,8 @@
-targetScope = 'subscription'
+targetScope = 'resourceGroup'
+
+// The resource group must already exist (created by the OIDC bootstrap, see
+// infra/bootstrap/README.md) so the deploying identity never needs subscription-level
+// permissions -- only Contributor + RBAC Administrator scoped to this one resource group.
 
 @description('Environment name: test or prod. Drives naming, SKUs, and retention/scale settings.')
 @allowed(['test', 'prod'])
@@ -32,7 +36,6 @@ var tags = {
 }
 
 var names = {
-  resourceGroup: 'rg-${workload}-${environment}'
   logAnalytics: 'log-${workload}-${environment}'
   appInsights: 'appi-${workload}-${environment}'
   keyVault: 'kv-${workload}-${environment}'
@@ -55,18 +58,11 @@ var deploymentContainers = {
 var pingTableName = 'pings'
 var pingQueueName = 'ping-queue'
 
-resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: names.resourceGroup
-  location: location
-  tags: tags
-}
-
 // prod is protected from accidental deletion; test is left removable for iteration
 module prodLock 'modules/resource-lock.bicep' = if (isProd) {
   name: 'prod-lock'
-  scope: rg
   params: {
-    name: 'CanNotDelete-${names.resourceGroup}'
+    name: 'CanNotDelete-rg-${workload}-${environment}'
     level: 'CanNotDelete'
     notes: 'Prevents accidental deletion of the prod PingPongMania resource group.'
   }
@@ -74,7 +70,6 @@ module prodLock 'modules/resource-lock.bicep' = if (isProd) {
 
 module logAnalytics 'modules/log-analytics.bicep' = {
   name: 'log-analytics'
-  scope: rg
   params: {
     name: names.logAnalytics
     location: location
@@ -84,7 +79,6 @@ module logAnalytics 'modules/log-analytics.bicep' = {
 
 module appInsights 'modules/app-insights.bicep' = {
   name: 'app-insights'
-  scope: rg
   params: {
     name: names.appInsights
     location: location
@@ -96,7 +90,6 @@ module appInsights 'modules/app-insights.bicep' = {
 
 module keyVault 'modules/key-vault.bicep' = {
   name: 'key-vault'
-  scope: rg
   params: {
     name: names.keyVault
     location: location
@@ -107,7 +100,6 @@ module keyVault 'modules/key-vault.bicep' = {
 
 module storageAccount 'modules/storage-account.bicep' = {
   name: 'storage-account'
-  scope: rg
   params: {
     name: names.storageAccount
     location: location
@@ -123,7 +115,6 @@ module storageAccount 'modules/storage-account.bicep' = {
 
 module serviceBus 'modules/service-bus.bicep' = {
   name: 'service-bus'
-  scope: rg
   params: {
     name: names.serviceBus
     location: location
@@ -135,7 +126,6 @@ module serviceBus 'modules/service-bus.bicep' = {
 
 module functionPlan 'modules/flex-consumption-plan.bicep' = {
   name: 'function-plan'
-  scope: rg
   params: {
     name: names.functionPlan
     location: location
@@ -145,7 +135,6 @@ module functionPlan 'modules/flex-consumption-plan.bicep' = {
 
 module pongFunctionApp 'modules/function-app.bicep' = {
   name: 'function-app-pong'
-  scope: rg
   params: {
     name: names.functionPong
     location: location
@@ -162,7 +151,6 @@ module pongFunctionApp 'modules/function-app.bicep' = {
 
 module pingFunctionApp 'modules/function-app.bicep' = {
   name: 'function-app-ping'
-  scope: rg
   params: {
     name: names.functionPing
     location: location
@@ -186,7 +174,6 @@ module pingFunctionApp 'modules/function-app.bicep' = {
 
 module playFunctionApp 'modules/function-app.bicep' = {
   name: 'function-app-play'
-  scope: rg
   params: {
     name: names.functionPlay
     location: location
@@ -207,11 +194,10 @@ module playFunctionApp 'modules/function-app.bicep' = {
 }
 
 // RBAC: least-privilege, scoped to the specific resource each identity actually needs.
-// Wrapped in its own resource-group-scoped module because a subscription-scoped root
-// template can't set a module's `scope:` to an arbitrary existing-resource symbol directly.
+// Kept as its own module for readability; not required for scoping purposes now that
+// main.bicep itself is resource-group-scoped.
 module rbac 'modules/rbac.bicep' = {
   name: 'rbac'
-  scope: rg
   params: {
     storageAccountName: storageAccount.outputs.name
     keyVaultName: keyVault.outputs.name
@@ -229,7 +215,6 @@ module rbac 'modules/rbac.bicep' = {
 // (Computed inside logic-app.bicep itself -- see the note there.)
 module logicApp 'modules/logic-app.bicep' = {
   name: 'logic-app'
-  scope: rg
   params: {
     name: names.logicApp
     location: location
@@ -243,7 +228,6 @@ module logicApp 'modules/logic-app.bicep' = {
 
 module apim 'modules/apim.bicep' = {
   name: 'apim'
-  scope: rg
   params: {
     name: names.apim
     location: location
@@ -255,7 +239,7 @@ module apim 'modules/apim.bicep' = {
   }
 }
 
-output resourceGroupName string = rg.name
+output resourceGroupName string = resourceGroup().name
 output apimGatewayUrl string = apim.outputs.gatewayUrl
 output functionAppNames object = {
   ping: pingFunctionApp.outputs.name

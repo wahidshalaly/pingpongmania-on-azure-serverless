@@ -9,9 +9,9 @@ This documents the one-time, manual setup that has to exist **before** any GitHu
 3. Two **federated credentials** on that identity, trusting only this repo:
    - `push` to `main` (subject `repo:<owner>/<repo>:ref:refs/heads/main`)
    - `pull_request` (subject `repo:<owner>/<repo>:pull_request`) — lets PR workflows run `what-if` previews
-4. Two RBAC role assignments on that identity:
-   - **Contributor @ subscription scope** — required because `main.bicep` is subscription-scoped (it creates the resource group itself). Triggering *any* subscription-scoped deployment requires `Microsoft.Resources/deployments/write` at the subscription, which is only grantable via a subscription-level role — there's no narrower built-in role for just "run subscription deployments."
-   - **Role Based Access Control Administrator @ the environment's resource group only** — narrower, needed only so `infra/modules/rbac.bicep` can assign its own roles (Storage/Service Bus data-plane access for the Function Apps' managed identities) during deployment. Deliberately *not* granted at subscription scope.
+4. Two RBAC role assignments on that identity, **both scoped only to the environment's resource group** — the identity never has any subscription-level permission:
+   - **Contributor** — to deploy the actual resources. `main.bicep` is resource-group-scoped (`targetScope = 'resourceGroup'`); it assumes the resource group already exists (step 1, above) rather than creating it itself, specifically so the deploying identity never needs a subscription-wide grant just to run `az deployment group create`.
+   - **Role Based Access Control Administrator** — needed only so `infra/modules/rbac.bicep` can assign its own roles (Storage/Service Bus data-plane access for the Function Apps' managed identities) during deployment.
 
 > These identifiers (client ID, tenant ID, subscription ID) are **not secrets** — the trust boundary is the federated credential's subject match (this exact repo + branch/PR) and GitHub's OIDC token signing, not secrecy of these IDs. Microsoft's own guidance stores them as GitHub Actions **variables**, not **secrets**. Safe to keep in this file.
 
@@ -29,7 +29,7 @@ GitHub Actions needs a working identity *before* it can run a deployment. That i
 | — principal (object) ID | | `<principal-id>` |
 | Federated credential (push main) | ✅ created | `gh-push-main` → `repo:wahidshalaly/pingpongmania:ref:refs/heads/main` |
 | Federated credential (pull request) | ✅ created | `gh-pull-request` → `repo:wahidshalaly/pingpongmania:pull_request` |
-| Role: Contributor @ subscription | ⏸ pending | scope `/subscriptions/<subscription-id>` |
+| Role: Contributor @ test RG | ⏸ pending | scope `/subscriptions/<subscription-id>/resourceGroups/rg-pingpongmania-test` |
 | Role: RBAC Administrator @ test RG | ⏸ pending | scope `/subscriptions/<subscription-id>/resourceGroups/rg-pingpongmania-test` |
 | GitHub repo variables (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`) | ⏸ pending | set after the roles above exist |
 | `deploy-test.yml` workflow | ⏸ pending | Task 16, not yet authored |
@@ -65,12 +65,13 @@ az identity federated-credential create \
   --subject "repo:${REPO}:pull_request" \
   --audiences "api://AzureADTokenExchange"
 
-# 4. RBAC role assignments — PENDING, requires a human with sufficient rights to grant
+# 4. RBAC role assignments — PENDING, requires a human with sufficient rights to grant.
+# Both scoped only to this one resource group -- the identity never gets subscription-level access.
 PRINCIPAL_ID=$(az identity show --name "$IDENTITY" --resource-group "$RG" --query principalId -o tsv)
 
 az role assignment create \
   --assignee-object-id "$PRINCIPAL_ID" --assignee-principal-type ServicePrincipal \
-  --role "Contributor" --scope "/subscriptions/$SUB_ID"
+  --role "Contributor" --scope "/subscriptions/$SUB_ID/resourceGroups/$RG"
 
 az role assignment create \
   --assignee-object-id "$PRINCIPAL_ID" --assignee-principal-type ServicePrincipal \

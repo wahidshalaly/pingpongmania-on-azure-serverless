@@ -42,9 +42,10 @@ aspire/
   PingPongMania.ServiceDefaults/  OpenTelemetry, health checks, service discovery
 
 infra/
-  main.bicep                    subscription-scoped orchestrator
+  main.bicep                    resource-group-scoped orchestrator (assumes the RG already exists)
   modules/                      one file per resource type (Storage, Service Bus, Function App, Logic App, APIM, RBAC, ...)
   environments/                 test.bicepparam, prod.bicepparam
+  bootstrap/                    manual, one-time OIDC deployment identity setup (per environment)
 
 tests/
   PingPongMania.Functions.Tests/  xUnit + Moq unit tests for all 3 Functions apps
@@ -95,11 +96,11 @@ dotnet test tests/PingPongMania.Functions.Tests/PingPongMania.Functions.Tests.cs
 
 ## Infrastructure as Code
 
-The Bicep templates under [infra/](infra/) are structurally validated (`az bicep build` / `az bicep lint` clean for `main.bicep` and both `.bicepparam` files) but have **not yet been deployed** to a real subscription — `what-if`/deploy automation (CI/CD) is still in progress. To validate locally:
+The Bicep templates under [infra/](infra/) are structurally validated (`az bicep build` / `az bicep lint` clean for `main.bicep` and both `.bicepparam` files) but have **not yet been deployed** to a real subscription — `what-if`/deploy automation (CI/CD) is still in progress. `main.bicep` is resource-group-scoped (it assumes the resource group already exists — see [infra/bootstrap/README.md](infra/bootstrap/README.md) — rather than creating it itself, so the deploying identity never needs subscription-level permissions). To validate locally:
 
 ```pwsh
 az bicep build --file infra/main.bicep
-az deployment sub what-if --location australiaeast --template-file infra/main.bicep --parameters infra/environments/test.bicepparam
+az deployment group what-if --resource-group rg-pingpongmania-test --template-file infra/main.bicep --parameters infra/environments/test.bicepparam
 ```
 
 ## CI/CD

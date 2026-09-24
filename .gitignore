@@ -459,3 +459,8 @@ $RECYCLE.BIN/
 ##
 .nuke/temp/
 .output/
+
+##
+## Bicep compiled output (az bicep build / build-params writes these next to the source)
+##
+infra/**/*.json
