@@ -1,71 +1,158 @@
-# Welcome to Dapr experiment
-In this experiment, I'll introduce you to basics of Dapr step by step, so it's adviced to review code commit-by-commit.
-This experiment is based on a simple example of 3 services each has a single endpoint, namely Play, Ping, and Pong services.
-There's only one simple scenario for interaction between them, Play calls Ping, and Ping calls Pong, either via HTTP or Pub/Sub.
+# PingPongMania
 
-To speed development on Kubernetes, [Skaffold](https://skaffold.dev) is utilised to make experimenting faster.
+A small sample solution demonstrating a serverless microservices chain on **Azure Functions**, **.NET 10**, and **.NET Aspire** for local development, provisioned with **modular Bicep** IaC.
 
-# Setting up a local Kubernetes cluster and deploy the sample
-You may setup a local Kubernetes cluster on Minikube, or use Azure Kubernetes Service instead to free your laptop resources
+The scenario is intentionally trivial: three services — **Play**, **Ping**, and **Pong** — each expose a single endpoint. `Play` calls `Ping`, and `Ping` calls `Pong`, either directly over HTTP or via an asynchronous queue (Service Bus), with `Ping` also persisting a record of each call to table storage.
+
+> **Repo status**: this project is mid-migration from an earlier Dapr/Kubernetes-based implementation to the serverless architecture described below. The new path (this document) is fully built, tested, and ready to run locally; live Azure deployment automation is still being added. The legacy stack still lives under [src/](src/), [deploy/](deploy/), and [skaffold.yaml](skaffold.yaml) and will be removed once the new path is proven in a real Azure deployment — see [Legacy Dapr/Kubernetes stack](#legacy-daprkubernetes-stack-being-retired) below.
+
+## Architecture
+
+| Concern | Technology |
+|---|---|
+| Compute | 3 Azure Functions apps (.NET 10, isolated worker), Flex Consumption plan |
+| Orchestration (Azure) | Logic App (Consumption) — models the Play → Ping → Pong chain, branching between an HTTP call and a Service Bus send |
+| Front door (Azure) | API Management (Consumption tier), subscription-key protected |
+| Messaging | Azure Service Bus queue (`ping-queue`) |
+| State | Azure Table Storage (`pings` table) |
+| Identity | System-assigned managed identity + RBAC everywhere possible (no connection strings, except one Function key used by the Logic App) |
+| Observability | Application Insights + Log Analytics, shared across resources |
+| Local dev | .NET Aspire (AppHost + ServiceDefaults), orchestrating the 3 Functions projects plus Azurite and a Service Bus emulator in Docker |
+| IaC | Modular Bicep (Azure Verified Modules where available), one parameter file per environment (`test`, `prod`) |
+
+```
+Play  -->  Ping  -->  Pong
+              \-> Table Storage (pings)
+```
+
+In Azure, `Play`'s public entry point is APIM → a Logic App workflow, which either calls `Ping` directly over HTTP or drops a message on `ping-queue` (consumed by `Ping`'s Service Bus-triggered function). Locally, `Play` calls `Ping` directly over HTTP — the queue path is exercised by publishing to the emulated queue directly (see [Testing the Service Bus path](#testing-the-service-bus-path-locally)).
+
+### Repo layout
+
+```
+functions/
+  PlayFunctions/     api/play  — HTTP trigger, calls Ping
+  PingFunctions/     api/ping  — HTTP trigger, calls Pong
+                     PingStore — Service Bus trigger, writes to Table Storage, then calls Pong
+  PongFunctions/     api/pong  — HTTP trigger, trivial 200 OK
+  Shared/            PingMessage record + queue/table name constants
+
+aspire/
+  PingPongMania.AppHost/        local orchestrator: wires the 3 Functions + Azurite + Service Bus emulator
+  PingPongMania.ServiceDefaults/  OpenTelemetry, health checks, service discovery
+
+infra/
+  main.bicep                    subscription-scoped orchestrator
+  modules/                      one file per resource type (Storage, Service Bus, Function App, Logic App, APIM, RBAC, ...)
+  environments/                 test.bicepparam, prod.bicepparam
+
+tests/
+  PingPongMania.Functions.Tests/  xUnit + Moq unit tests for all 3 Functions apps
+```
+
+## Running locally
+
+**Prerequisites**: [.NET 10 SDK](https://dotnet.microsoft.com/download), [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local) v4, [Docker](https://www.docker.com/) (for the Azurite and Service Bus emulators). The [Aspire CLI](https://learn.microsoft.com/dotnet/aspire/cli/overview) is bundled automatically via the AppHost's tooling — no separate install needed.
+
+```pwsh
+cd aspire/PingPongMania.AppHost
+dotnet run
+```
+
+This starts all three Functions apps plus the local Azurite and Service Bus emulator containers, and prints an **Aspire dashboard** URL to the console, e.g.:
+
+```
+   Dashboard:  https://localhost:17131/login?t=<token>
+```
+
+Open it in a browser (the token logs you in automatically). The **Resources** page lists each Function app — `playfunctions`, `pingfunctions`, `pongfunctions` — with its actual local endpoint URL. Ports are assigned dynamically per run, so always get the current URL from the dashboard rather than assuming a fixed port.
+
+### Calling the endpoints
+
+Click a Function's endpoint in the dashboard, or copy the URL and call it directly:
+
+```
+GET /api/play    — exercises the full chain: Play → Ping → Pong
+GET /api/ping    — Ping → Pong only
+GET /api/pong    — trivial 200 OK
+```
+
+```pwsh
+curl https://localhost:<play-port>/api/play
+```
+
+A `200` response means the whole chain succeeded. Each HTTP trigger is declared with `AuthorizationLevel.Function` in code, but local `dotnet run`/Functions Core Tools development does **not** enforce that — no function key is needed when calling these endpoints locally. A real Azure deployment does require a key (or, in practice, goes through APIM/the Logic App instead of calling the Function directly).
+
+### Testing the Service Bus path locally
+
+`PingStoreFunction` (the queue-triggered half of `Ping`) only fires on messages published to `ping-queue`. There's no local HTTP trigger for this path — that branching lives in the Logic App workflow (Azure-only, not part of local Aspire orchestration). To exercise it locally, publish a `PingMessage`-shaped JSON payload to the emulated queue directly (e.g. via the Service Bus SDK or a tool like Service Bus Explorer), using the emulator's connection string shown in the dashboard's `servicebus` resource.
+
+## Running tests
+
+```pwsh
+dotnet test tests/PingPongMania.Functions.Tests/PingPongMania.Functions.Tests.csproj
+```
+
+## Infrastructure as Code
+
+The Bicep templates under [infra/](infra/) are structurally validated (`az bicep build` / `az bicep lint` clean for `main.bicep` and both `.bicepparam` files) but have **not yet been deployed** to a real subscription — `what-if`/deploy automation (CI/CD) is still in progress. To validate locally:
+
+```pwsh
+az bicep build --file infra/main.bicep
+az deployment sub what-if --location australiaeast --template-file infra/main.bicep --parameters infra/environments/test.bicepparam
+```
+
+## CI/CD
+
+[.github/workflows/build-test.yml](.github/workflows/build-test.yml) builds the legacy `src/` solution, the Aspire AppHost (which pulls in all 3 Functions projects), and runs the test suite on every push/PR to `main`. Deployment workflows (OIDC-based `az deployment` to `test`/`prod`) are not yet added.
+
+## Legacy Dapr/Kubernetes stack (being retired)
+
+[src/](src/), [deploy/](deploy/), [skaffold.yaml](skaffold.yaml), [build/](build/), and [.nuke/](.nuke/) contain the original implementation of this sample: the same Play/Ping/Pong scenario built on **Dapr** running on **Kubernetes**, deployed with **Skaffold**, built with **Nuke**. It still builds and runs but is no longer the primary path for this repo and will be deleted once the serverless architecture above has been proven with a real Azure deployment.
+
+<details>
+<summary>Running the legacy stack (click to expand)</summary>
+
+You may set up a local Kubernetes cluster on Minikube, or use Azure Kubernetes Service instead to free your laptop's resources.
 - Install Minikube from [minikube](https://minikube.sigs.k8s.io/docs/start/)
-- Enable Minikube addons: ingress
-- Install Dapr to local cluster using `dapr init -k`
-- Finally, use Skaffold to deploy to cluster `skaffold dev`
+- Enable the Minikube `ingress` addon
+- Install Dapr to the local cluster: `dapr init -k`
+- Use Skaffold to deploy to the cluster: `skaffold dev`
 
-# Notes on Skaffold for development mode
-
-## Skaffold initiation
-This is required only once before you start using Skaffold.
+### Skaffold initiation
+Required only once before first use:
 ```
 skaffold init --generate-manifests
 ```
-Then select to build images using Dockerfile.
-Also, you'll need to do minor modifications to generated manifests that suit your preferences and desired architecture.
+Select to build images using Dockerfile. You'll need to make minor modifications to the generated manifests to suit your architecture.
 
----
-## Build container images, deploy them, and watch running services
-If you're not using a local cluster you'll need to use a container registry, like Azure Container Registry.
-
-Before building any images, you need to set the default repository if you're not using local cluster
+### Build, deploy, and watch
+If you're not using a local cluster, you'll need a container registry (e.g. Azure Container Registry) and must set the default repository:
 ```pwsh
 $env:SKAFFOLD_DEFAULT_REPO='wshalalylab.azurecr.io/pingpongmania'
-gci $env:SKAFFOLD_DEFAULT_REPO
 ```
-
-Then you can use Skaffold development mode to watch file changes and automatically build new container images and deploy them to the cluster.
+Then use Skaffold's development mode to watch for file changes and automatically build/deploy:
 ```
 skaffold dev
 ```
-
-If you need to run only without watching changes, you can use
+To run once without watching:
 ```
 skaffold run --cleanup --tail
 ```
-
-To clean up after you finish playing with the sample
+To clean up:
 ```
 skaffold delete
 ```
 
-# Secret Store
-Kubernetes secrets store is used for this experiment.
-First, you'll need to create a secret in Kubernetes outside of the Skaffold process.
-You can store the value in a text file and use `kubectl` to create the secret.
-If you decided to test the Pub/Sub service invocation, you'll need to provide
-two connection string, one for Azure Service Bus and another for Azure Table Storage.
-Write secrets to text files with names indicated below then import then into Kubernetes cluster.
-
+### Secrets
+The legacy stack uses Kubernetes secrets, created outside of the Skaffold process. If testing Pub/Sub service invocation, you'll need connection strings for Azure Service Bus and Azure Table Storage, written to text files and imported via `kubectl`:
 ```
 kubectl create secret generic storage-account-key --from-file=storageAccountName=..\azurestorage-accountkey.txt -n pingpongmania-dev
 kubectl create secret generic asb-connection-string --from-file=connectionString=..\servicebus-connectionstring.txt -n pingpongmania-dev
 ```
 
-# Tips
-- You can use [HTTPie](https://httpie.io) for quick API testing
-```
-http GET http://localhost:5000/api/ping
-```
-- To fix the NuGet missing package error `NETSDK1064`, make sure to have a `.dockerignore` file.
-It must be located at the root of the context used for Docker Build command.
-https://docs.microsoft.com/en-us/dotnet/core/tools/sdk-errors/netsdk1064
-https://stackoverflow.com/questions/61167032/error-netsdk1064-package-dnsclient-1-2-0-was-not-found
+### Tips
+- Use [HTTPie](https://httpie.io) for quick API testing: `http GET http://localhost:5000/api/ping`
+- To fix the NuGet missing package error `NETSDK1064`, ensure a `.dockerignore` file exists at the root of the Docker build context. See [Microsoft's guidance](https://docs.microsoft.com/en-us/dotnet/core/tools/sdk-errors/netsdk1064) and this [Stack Overflow thread](https://stackoverflow.com/questions/61167032/error-netsdk1064-package-dnsclient-1-2-0-was-not-found).
+
+</details>
