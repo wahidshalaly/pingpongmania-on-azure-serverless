@@ -11,7 +11,7 @@ This repo is being modernized from Dapr-on-Kubernetes to .NET 10 Azure Functions
 
 ## Hard constraints
 
-- **Do not run `az deployment ... what-if` or `create`, or otherwise provision/modify resources in a real Azure subscription, without the user's explicit, freshly-given permission for that specific action.** Bicep changes should be validated with `az bicep build` / `az bicep lint` only unless told otherwise. This applies even if an authenticated `az` CLI session happens to be available.
+- **Do not run `az deployment ... what-if` or `create`, create/modify Azure resources, or grant/change RBAC role assignments in a real Azure subscription, without the user's explicit, freshly-given permission for that specific action.** Bicep changes should be validated with `az bicep build` / `az bicep lint` only unless told otherwise. This applies even if an authenticated `az` CLI session happens to be available. Role assignment creation specifically requires the user to run it themselves or grant permission per-instance — see [infra/bootstrap/README.md](infra/bootstrap/README.md) for the OIDC deployment identity bootstrap, where this line was drawn in practice.
 - Keep documentation (README.md, this file) updated in the same session as any change that affects setup steps, architecture, run commands, or repo layout — don't defer doc updates to a later cleanup pass.
 
 ## Build & test commands

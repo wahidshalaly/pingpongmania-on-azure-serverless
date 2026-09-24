@@ -104,7 +104,7 @@ az deployment sub what-if --location australiaeast --template-file infra/main.bi
 
 ## CI/CD
 
-[.github/workflows/build-test.yml](.github/workflows/build-test.yml) checks code formatting (`functions/`, `aspire/`, `tests/`), builds the legacy `src/` solution, builds the Aspire AppHost (which pulls in all 3 Functions projects), and runs the test suite on every push/PR to `main`. Deployment workflows (OIDC-based `az deployment` to `test`/`prod`) are not yet added.
+[.github/workflows/build-test.yml](.github/workflows/build-test.yml) checks code formatting (`functions/`, `aspire/`, `tests/`), builds the legacy `src/` solution, builds the Aspire AppHost (which pulls in all 3 Functions projects), and runs the test suite on every push/PR to `main`. Deployment workflows (OIDC-based `az deployment` to `test`/`prod`) are not yet added — the one-time manual bootstrap they depend on (an OIDC deployment identity per environment) is in progress; see [infra/bootstrap/README.md](infra/bootstrap/README.md).
 
 Code style for the new stack is enforced by [CSharpier](https://csharpier.com):
 ```pwsh
