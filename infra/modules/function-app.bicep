@@ -22,8 +22,8 @@ param deploymentContainerName string
 @description('Resource ID of the Application Insights component.')
 param applicationInsightsResourceId string
 
-@description('.NET version for the isolated worker runtime, e.g. "10.0". Verify Flex Consumption GA support for this version before deploying -- func Core Tools supports it locally as of Core Tools 4.12.1, but hosted runtime support was unverified at IaC-authoring time (no Azure subscription available in that session).')
-param dotnetVersion string = '10.0'
+@description('.NET version for the isolated worker runtime, major version only (e.g. "10", not "10.0") -- confirmed via az functionapp list-flexconsumption-runtimes --runtime dotnet-isolated. .NET 10 is GA on Flex Consumption.')
+param dotnetVersion string = '10'
 
 @description('Memory allocated per instance, in MB.')
 param instanceMemoryMB int = 2048

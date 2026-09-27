@@ -17,8 +17,8 @@ param apimPublisherEmail string = 'admin@pingpongmania.dev'
 @description('Publisher name required by API Management.')
 param apimPublisherName string = 'PingPongMania'
 
-@description('.NET isolated worker runtime version for the Function Apps.')
-param dotnetVersion string = '10.0'
+@description('.NET isolated worker runtime version for the Function Apps (major version only, e.g. "10" -- verified against az functionapp list-flexconsumption-runtimes).')
+param dotnetVersion string = '10'
 
 // --- Environment-specific deltas ---
 var isProd = environment == 'prod'
