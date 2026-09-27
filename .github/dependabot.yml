@@ -5,13 +5,13 @@
 
 version: 2
 updates:
+  # Package versions are managed centrally in Directory.Packages.props at the repo
+  # root (NuGet Central Package Management), so Dependabot watches the root.
   - package-ecosystem: "nuget"
-  # Update Nuke
-    directory: "/build"
+    directory: "/"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "nuget"
-  # Update PingPongMania solution
-    directory: "/src"
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "weekly"

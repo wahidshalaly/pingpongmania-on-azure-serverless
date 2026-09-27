@@ -2,12 +2,11 @@
 
 Guidance for Claude Code when working in this repository.
 
-## Repo status: mid-migration
+## What this repo is
 
-This repo is being modernized from Dapr-on-Kubernetes to .NET 10 Azure Functions + .NET Aspire (local dev) + Bicep (Azure provisioning). **Both stacks currently coexist:**
+A sample solution demonstrating a serverless microservices chain on **.NET 10 Azure Functions**, with **.NET Aspire** for local development and **modular Bicep** for Azure provisioning. Layout: `functions/`, `aspire/`, `infra/`, `tests/` — see [README.md](README.md) for architecture and how to run it.
 
-- **New (primary going forward)**: `functions/`, `aspire/`, `infra/`, `tests/` — see [README.md](README.md) for architecture and how to run it.
-- **Legacy (being retired, do not delete yet)**: `src/`, `deploy/`, `skaffold.yaml`, `build/`, `.nuke/`, `build.{cmd,sh,ps1}` — the original Dapr/Kubernetes implementation. Keep this working and do not remove it until the new serverless path has been proven with a real Azure deployment (a live end-to-end smoke test through a deployed APIM endpoint). This is intentional — don't "clean up" the legacy stack as an unrelated tidy-up.
+This code began life as a Dapr-on-Kubernetes experiment and was migrated here. That original stack (`src/`, `deploy/`, `skaffold.yaml`, `build/`, `.nuke/`, Nuke + Skaffold tooling) is **not** part of this repo — it's archived at [wahidshalaly/pingpongmania](https://github.com/wahidshalaly/pingpongmania), which is kept read-only for historical reference. Don't reintroduce Dapr, Kubernetes, Skaffold, or Nuke here.
 
 ## Hard constraints
 
@@ -17,23 +16,20 @@ This repo is being modernized from Dapr-on-Kubernetes to .NET 10 Azure Functions
 ## Build & test commands
 
 ```pwsh
-# Legacy Dapr/K8s solution
-dotnet build src/PingPongMania.sln
-
-# New stack: Aspire AppHost (pulls in all 3 Functions projects + Shared + ServiceDefaults)
+# Build everything: the Aspire AppHost pulls in all 3 Functions projects + Shared + ServiceDefaults
 dotnet build aspire/PingPongMania.AppHost/PingPongMania.AppHost.csproj
 
-# Run locally (new stack) — see README.md for how to find ports/call endpoints
+# Run locally — see README.md for how to find ports/call endpoints
 cd aspire/PingPongMania.AppHost && dotnet run
 
-# Unit tests (new stack)
+# Unit tests
 dotnet test tests/PingPongMania.Functions.Tests/PingPongMania.Functions.Tests.csproj
 
 # Bicep validation only (no deploy)
 az bicep build --file infra/main.bicep
 az bicep lint --file infra/main.bicep
 
-# Format check / apply (new stack only — src/ is excluded, being retired)
+# Format check / apply
 dotnet tool restore
 dotnet csharpier check functions aspire tests
 dotnet csharpier format functions aspire tests

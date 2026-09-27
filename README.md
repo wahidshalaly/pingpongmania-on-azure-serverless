@@ -4,7 +4,9 @@ A small sample solution demonstrating a serverless microservices chain on **Azur
 
 The scenario is intentionally trivial: three services — **Play**, **Ping**, and **Pong** — each expose a single endpoint. `Play` calls `Ping`, and `Ping` calls `Pong`, either directly over HTTP or via an asynchronous queue (Service Bus), with `Ping` also persisting a record of each call to table storage.
 
-> **Repo status**: this project is mid-migration from an earlier Dapr/Kubernetes-based implementation to the serverless architecture described below. The new path (this document) is fully built, tested, and ready to run locally; live Azure deployment automation is still being added. The legacy stack still lives under [src/](src/), [deploy/](deploy/), and [skaffold.yaml](skaffold.yaml) and will be removed once the new path is proven in a real Azure deployment — see [Legacy Dapr/Kubernetes stack](#legacy-daprkubernetes-stack-being-retired) below.
+> **Repo status**: the application code, local development setup, and Bicep infrastructure are complete and tested. Local dev runs end to end. Deployment automation to Azure is still being wired up — see [CI/CD](#cicd).
+>
+> This sample started as a Dapr-on-Kubernetes experiment; that original implementation (Dapr, Kubernetes, Skaffold, Nuke) is archived at [wahidshalaly/pingpongmania](https://github.com/wahidshalaly/pingpongmania) and is not part of this repo.
 
 ## Architecture
 
@@ -105,61 +107,10 @@ az deployment group what-if --resource-group rg-pingpongmania-test --template-fi
 
 ## CI/CD
 
-[.github/workflows/build-test.yml](.github/workflows/build-test.yml) checks code formatting (`functions/`, `aspire/`, `tests/`), builds the legacy `src/` solution, builds the Aspire AppHost (which pulls in all 3 Functions projects), and runs the test suite on every push/PR to `main`. Deployment workflows (OIDC-based `az deployment` to `test`/`prod`) are not yet added — the one-time manual bootstrap they depend on (an OIDC deployment identity per environment) is in progress; see [infra/bootstrap/README.md](infra/bootstrap/README.md).
+[.github/workflows/build-test.yml](.github/workflows/build-test.yml) checks code formatting, builds the Aspire AppHost (which pulls in all 3 Functions projects), and runs the test suite on every push/PR to `main`. Deployment workflows (OIDC-based `az deployment` to `test`/`prod`) are not yet added — the one-time manual bootstrap they depend on (an OIDC deployment identity per environment) is in progress; see [infra/bootstrap/README.md](infra/bootstrap/README.md).
 
-Code style for the new stack is enforced by [CSharpier](https://csharpier.com):
+Code style is enforced by [CSharpier](https://csharpier.com):
 ```pwsh
 dotnet tool restore
 dotnet csharpier format functions aspire tests
 ```
-
-## Legacy Dapr/Kubernetes stack (being retired)
-
-[src/](src/), [deploy/](deploy/), [skaffold.yaml](skaffold.yaml), [build/](build/), and [.nuke/](.nuke/) contain the original implementation of this sample: the same Play/Ping/Pong scenario built on **Dapr** running on **Kubernetes**, deployed with **Skaffold**, built with **Nuke**. It still builds and runs but is no longer the primary path for this repo and will be deleted once the serverless architecture above has been proven with a real Azure deployment.
-
-<details>
-<summary>Running the legacy stack (click to expand)</summary>
-
-You may set up a local Kubernetes cluster on Minikube, or use Azure Kubernetes Service instead to free your laptop's resources.
-- Install Minikube from [minikube](https://minikube.sigs.k8s.io/docs/start/)
-- Enable the Minikube `ingress` addon
-- Install Dapr to the local cluster: `dapr init -k`
-- Use Skaffold to deploy to the cluster: `skaffold dev`
-
-### Skaffold initiation
-Required only once before first use:
-```
-skaffold init --generate-manifests
-```
-Select to build images using Dockerfile. You'll need to make minor modifications to the generated manifests to suit your architecture.
-
-### Build, deploy, and watch
-If you're not using a local cluster, you'll need a container registry (e.g. Azure Container Registry) and must set the default repository:
-```pwsh
-$env:SKAFFOLD_DEFAULT_REPO='wshalalylab.azurecr.io/pingpongmania'
-```
-Then use Skaffold's development mode to watch for file changes and automatically build/deploy:
-```
-skaffold dev
-```
-To run once without watching:
-```
-skaffold run --cleanup --tail
-```
-To clean up:
-```
-skaffold delete
-```
-
-### Secrets
-The legacy stack uses Kubernetes secrets, created outside of the Skaffold process. If testing Pub/Sub service invocation, you'll need connection strings for Azure Service Bus and Azure Table Storage, written to text files and imported via `kubectl`:
-```
-kubectl create secret generic storage-account-key --from-file=storageAccountName=..\azurestorage-accountkey.txt -n pingpongmania-dev
-kubectl create secret generic asb-connection-string --from-file=connectionString=..\servicebus-connectionstring.txt -n pingpongmania-dev
-```
-
-### Tips
-- Use [HTTPie](https://httpie.io) for quick API testing: `http GET http://localhost:5000/api/ping`
-- To fix the NuGet missing package error `NETSDK1064`, ensure a `.dockerignore` file exists at the root of the Docker build context. See [Microsoft's guidance](https://docs.microsoft.com/en-us/dotnet/core/tools/sdk-errors/netsdk1064) and this [Stack Overflow thread](https://stackoverflow.com/questions/61167032/error-netsdk1064-package-dnsclient-1-2-0-was-not-found).
-
-</details>
